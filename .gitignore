@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.DS_Store
+.claude/
+# live_data.json ถูก generate โดย GitHub Action — ปลดคอมเมนต์บรรทัดล่างถ้าไม่อยาก commit
+# live_data.json

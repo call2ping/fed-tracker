@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fed Tracker — FedWatch · Dot Plot · Fed Funds Rate</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">▲</span>
+      <div>
+        <h1>Fed Tracker</h1>
+        <p class="sub">ติดตามทิศทางดอกเบี้ยธนาคารกลางสหรัฐฯ
+          <span id="dataSource" class="src-badge">sample</span></p>
+      </div>
+    </div>
+    <div class="fred">
+      <input id="fredKey" type="password" placeholder="FRED API key (ไม่บังคับ)" />
+      <button id="fredBtn">ดึงดอกเบี้ยสด</button>
+      <span id="fredStatus" class="fred-status"></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- สรุปด้านบน -->
+    <section class="summary">
+      <div class="card kpi">
+        <span class="kpi-label">กรอบดอกเบี้ยปัจจุบัน</span>
+        <span class="kpi-value" id="curRate">—</span>
+        <span class="kpi-foot" id="curRateFoot"></span>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-label">การประชุมครั้งถัดไป</span>
+        <span class="kpi-value" id="nextMeeting">—</span>
+        <span class="kpi-foot" id="nextMeetingFoot"></span>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-label">ตลาดคาดในการประชุมถัดไป</span>
+        <span class="kpi-value" id="nextExpect">—</span>
+        <span class="kpi-foot" id="nextExpectFoot"></span>
+      </div>
+      <div class="card kpi">
+        <span class="kpi-label">คาดว่าจะลดดอกเบี้ยครั้งแรก</span>
+        <span class="kpi-value" id="firstCut">—</span>
+        <span class="kpi-foot" id="firstCutFoot"></span>
+      </div>
+    </section>
+
+    <!-- FedWatch -->
+    <section class="card block">
+      <div class="block-head">
+        <h2>FedWatch — โอกาสที่ Fed จะปรับดอกเบี้ยในแต่ละการประชุม</h2>
+        <p class="block-desc">
+          ความน่าจะเป็นของกรอบดอกเบี้ยปลายทาง อิงจาก 30-Day Fed Funds Futures
+          แถบสีบอกว่าตลาด "คง" (เทา) / "ลด" (เขียว) / "ขึ้น" (แดง) เทียบกับปัจจุบัน
+        </p>
+      </div>
+      <div id="fedwatch" class="fedwatch"></div>
+    </section>
+
+    <!-- Alerts -->
+    <section class="card block" id="alertBlock">
+      <div class="block-head">
+        <h2>การแจ้งเตือน (Alerts)</h2>
+        <p class="block-desc">
+          เตือนเมื่อโอกาส "ลด" หรือ "ขึ้น" ดอกเบี้ยในรอบที่เลือก ≥ เกณฑ์ที่กำหนด
+          — เงื่อนไขถูกบันทึกไว้ในเครื่อง (localStorage) และตรวจทุกครั้งที่ข้อมูลอัปเดต
+        </p>
+      </div>
+      <div class="alert-form">
+        <select id="alMeeting"></select>
+        <select id="alDir">
+          <option value="cut">ลดดอกเบี้ย</option>
+          <option value="hike">ขึ้นดอกเบี้ย</option>
+        </select>
+        <span class="af-op">≥</span>
+        <input id="alThresh" type="number" min="1" max="100" step="1" value="60" />
+        <span class="af-op">%</span>
+        <button id="alAdd">เพิ่มเงื่อนไข</button>
+        <button id="alNotify" class="ghost">เปิดแจ้งเตือนเดสก์ท็อป</button>
+      </div>
+      <div id="alBanner" class="alert-banner"></div>
+      <div id="alList" class="alert-list"></div>
+    </section>
+
+    <!-- Probability history -->
+    <section class="card block">
+      <div class="block-head">
+        <h2>ประวัติการเปลี่ยนแปลงโอกาส</h2>
+        <p class="block-desc">
+          โอกาส ลด/คง/ขึ้น ของการประชุมที่เลือก เปลี่ยนแปลงอย่างไรเมื่อเวลาผ่านไป
+          (สะสมวันละจุดเมื่อรันผ่าน backend)
+        </p>
+      </div>
+      <div class="hist-controls">
+        <label for="histMeeting">การประชุม:</label>
+        <select id="histMeeting"></select>
+        <span id="histSrc" class="hist-src"></span>
+      </div>
+      <div id="history" class="ratepath-wrap"></div>
+    </section>
+
+    <!-- Backtest: FedWatch vs actual -->
+    <section class="card block">
+      <div class="block-head">
+        <h2>FedWatch แม่นแค่ไหน — เทียบกับผลจริงย้อนหลัง</h2>
+        <p class="block-desc">
+          แต่ละแถวคือการประชุมในอดีต: แถบ = ความน่าจะเป็นที่ตลาดให้ "1 วันก่อนประชุม"
+          · กรอบขาว = ผลที่ <b>เกิดจริง</b> · ป้ายขวา = ทายถูกไหม และให้โอกาสกับผลจริงกี่ %
+        </p>
+      </div>
+      <div class="bt-summary" id="btSummary"></div>
+      <div id="backtest" class="backtest"></div>
+    </section>
+
+    <!-- Dot Plot -->
+    <section class="card block">
+      <div class="block-head">
+        <h2>Dot Plot — มุมมองดอกเบี้ยของสมาชิก FOMC</h2>
+        <p class="block-desc">
+          แต่ละจุดคือการคาดการณ์ของสมาชิก FOMC 1 คน ต่อระดับดอกเบี้ย ณ สิ้นปีนั้นๆ
+          (จาก SEP <span id="sepDate"></span>) — เส้นประคือค่ามัธยฐาน (median)
+        </p>
+      </div>
+      <div id="dotplot" class="dotplot-wrap"></div>
+    </section>
+
+    <!-- Dot Plot vs Market -->
+    <section class="card block">
+      <div class="block-head">
+        <h2>Fed vs ตลาด — เทียบ Dot Plot กับที่ตลาดคาด</h2>
+        <p class="block-desc">
+          แท่งฟ้า = ช่วงการคาดการณ์ของ FOMC (เส้นเหลือง = median) · เพชรเขียว = อัตราที่ตลาดคาด ณ สิ้นปี (จาก FedWatch)
+          — ตัวเลขกำกับคือ "ส่วนต่าง" เป็น bps (บวก = Fed มองดอกเบี้ยสูงกว่าตลาด/เหยี่ยวกว่า)
+        </p>
+      </div>
+      <div id="compare" class="dotplot-wrap"></div>
+    </section>
+
+    <!-- Rate path / history -->
+    <section class="card block">
+      <div class="block-head">
+        <h2>เส้นทางอัตราดอกเบี้ย (Rate Path)</h2>
+        <p class="block-desc">เส้นทึบ = อัตราจริงในอดีต · เส้นประ = เส้นทางที่ตลาดคาด (อิง FedWatch)</p>
+      </div>
+      <div id="ratepath" class="ratepath-wrap"></div>
+    </section>
+
+    <footer class="foot">
+      <p>
+        ⚠️ ข้อมูลบนหน้านี้เป็น <b>ตัวอย่าง</b> เพื่อสาธิตโครงสร้างเว็บ ไม่ใช่ข้อมูลตลาดจริง
+        — แก้ไขตัวเลขได้ที่ <code>data.js</code> · อัปเดตล่าสุด: <span id="lastUpdated"></span>
+      </p>
+      <p class="src">
+        แหล่งข้อมูลจริง: CME FedWatch Tool · Fed SEP (Dot Plot) · FRED (Fed Funds Rate)
+      </p>
+    </footer>
+  </main>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Deploy ขึ้น Render.com — แค่ push repo นี้แล้วเลือก "New > Blueprint"
+services:
+  - type: web
+    name: fed-tracker
+    runtime: python
+    plan: free
+    buildCommand: ""        # ไม่ต้อง build อะไร (stdlib ล้วน)
+    startCommand: python server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      # ใส่ FRED key ที่นี่ (หรือผ่านหน้า Dashboard) เพื่อให้กรอบดอกเบี้ยอัปเดตเอง
+      - key: FRED_API_KEY
+        sync: false

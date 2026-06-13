@@ -1,0 +1,35 @@
+# อัปเดต live_data.json อัตโนมัติทุกวัน แล้ว commit กลับ
+# ทำให้ static hosting (GitHub Pages) มีข้อมูล FedWatch สดโดยไม่ต้องมี backend
+name: update-fedwatch-data
+
+on:
+  schedule:
+    - cron: "30 22 * * 1-5"   # ทุกวันทำการ ~05:30 ตามเวลาไทย (หลังตลาดสหรัฐปิด)
+  workflow_dispatch: {}         # กดรันเองได้
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: คำนวณ FedWatch แล้วเขียน live_data.json
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}   # ตั้งใน repo Settings > Secrets (ไม่บังคับ)
+        run: python fedwatch.py --write || echo "ดึงข้อมูลไม่ได้ ข้ามรอบนี้"
+      - name: commit ถ้ามีการเปลี่ยนแปลง
+        run: |
+          if [ -n "$(git status --porcelain live_data.json history.json)" ]; then
+            git config user.name "github-actions"
+            git config user.email "actions@github.com"
+            git add live_data.json history.json
+            git commit -m "chore: refresh FedWatch data + history"
+            git push
+          else
+            echo "ข้อมูลไม่เปลี่ยน"
+          fi

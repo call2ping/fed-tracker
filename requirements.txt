@@ -1,0 +1,2 @@
+# ไม่มี dependency — backend ใช้ Python standard library ล้วน
+# (ไฟล์นี้มีไว้ให้ระบบ deploy ตรวจว่าเป็นโปรเจกต์ Python)

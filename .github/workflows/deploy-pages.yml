@@ -1,0 +1,45 @@
+# Deploy เว็บ (static) ขึ้น GitHub Pages
+# ทำงานเมื่อ: push เข้า main / หลัง update-data รันเสร็จ / กดเอง
+name: deploy-pages
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["update-fedwatch-data"]   # deploy ใหม่หลังข้อมูลอัปเดต
+    types: [completed]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# ให้ deploy ทีละครั้ง ไม่ชนกัน
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: ประกอบเฉพาะไฟล์ static ที่จำเป็น
+        run: |
+          mkdir -p _site
+          cp index.html styles.css app.js data.js _site/
+          # ข้อมูลที่ update-data สร้างไว้ (ถ้ามี) — frontend อ่านเป็นข้อมูลสด
+          [ -f live_data.json ] && cp live_data.json _site/ || echo "ยังไม่มี live_data.json (จะใช้ข้อมูลตัวอย่าง)"
+          [ -f history.json ]   && cp history.json   _site/ || echo "ยังไม่มี history.json"
+          touch _site/.nojekyll
+      - name: อัปโหลด artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
